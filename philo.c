@@ -1,95 +1,45 @@
 #include "philo.h"
 
-void	destroy_table(t_table *table)
+void	destr_philos(t_reaper *reaper, int *args)
 {
-	int rep = -1;
-	int philos = table->phil_num;
+	int		re = -1;
 
-	while(++rep < philos)
+	while (++re < args[0])
 	{
-		pthread_mutex_destroy(&forks[rep]);
+		pthread_mutex_destroy(&reaper->fork[re]);
+		pthread_join(&reaper->subject[re].thread, NULL);
 	}
 
 }
 
-void	init_table(t_table *table, int philos, int countdown, int eat, int sleep)
+void	init_philos(t_reaper *reaper, int *args)
 {
-	int	rep = -1;
+	int		re = -1;
 
-	table->phil_num = philos;
-	while (++rep < philos)
+	reaper->hourglass=args[1];
+	while (++re < args[0])
 	{
-		table->philos[rep].id = rep;
-		pthread_mutex_init(&table->philos[rep].mutex, NULL);
-		table->philos[rep].countdown = countdown;
-		table->philos[rep].eating = eat;
-		table->philos[rep].sleeping	= sleep;
-		table->philos[rep].is_dead = 0;
-		pthread_mutex_init(&forks[rep], NULL);
+		reaper->subject[re].id = re;
+		reaper->subject[re].eat = args[2];
+		reaper->subject[re].rest = args[3];
+		pthread_mutex_init(&reaper->fork[re], NULL);
 	}
 }
 
-
-void	*routine(void *arg)
+void	start_process(t_reaper *reaper)
 {
-	t_philo 		phil = *(t_philo *)arg;
-	int				id = phil.id;
-	int				l_fork = phil.l_fork;
-	int				r_fork = phil.r_fork;
-	
-	if (l_fork < r_fork)
+	int	i = -1;
+	while(++i <= 10)
 	{
-		pthread_mutex_lock(&forks[l_fork]);
-		pthread_mutex_lock(&forks[r_fork]);
-	}
-	else
-	{
-		pthread_mutex_lock(&forks[r_fork]);
-		pthread_mutex_lock(&forks[l_fork]);
-	}
-    printf("Thread %d accessing forks %d and %d\n", id + 1, l_fork + 1, r_fork + 1);
-	pthread_mutex_unlock(&forks[r_fork]);
-	pthread_mutex_unlock(&forks[l_fork]);
-	return (NULL);
-}
 
-void	start_program(t_table *table)
-{
-	int	rep = -1;
-	int philos = table->phil_num;
-
-	while (++rep < philos)
-	{
-		table->philos[rep].l_fork = rep;
-		if(rep == philos - 1)
-			table->philos[rep].r_fork = 0;
-		else
-			table->philos[rep].r_fork = rep + 1;
-		pthread_create(&table->philos[rep].thread, NULL, routine, &table->philos[rep]);
 	}
 }
 
-void	end_program(t_table *table)
+int main(void)
 {
-	int	rep = -1;
-	int philos = table->phil_num;
-
-	while (++rep < philos)
-	{
-		pthread_join(table->philos[rep].thread, NULL);
-	}
-}
-
-int	main(void)
-{
-	int		philos = 4;
-	int		countdown = 500;
-	int 	eat = 200;
-	int 	sleep = 200;
-	t_table table;
-	
-	init_table(&table, philos, countdown, eat, sleep);
-	start_program(&table);
-	end_program(&table);
-	destroy_table(&table);
+	t_reaper	reaper;
+	int			argv[5] = {4, 600, 200, 200};
+	init_philos(&reaper, argv);
+	start_process(&reaper);
+	destr_philos(&reaper, argv);
 }
