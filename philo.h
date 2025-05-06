@@ -14,7 +14,6 @@
 
 typedef struct s_philosopher
 {
-	pthread_t		*setup;
 	long			*start;
 	int				id;
 	int				state;

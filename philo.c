@@ -12,7 +12,45 @@ void	destr_philos(t_reaper *reaper, int *args)
 	}
 }
 
-void	init_philos(t_reaper *reaper, pthread_t *setup, int *args)
+long	get_curr_time(void)
+{
+	struct timeval	current;
+	gettimeofday(&current, NULL);
+	long curr = ((current.tv_sec * 1000) + current.tv_usec);
+	return (curr);
+}
+
+long	hour_glass(long start, long end)
+{
+	return( end - start);
+}
+
+void	*limbo(void	*args)
+{
+	t_philosopher *philo = (t_philosopher *) args;
+
+	while (*philo->start == 0);
+	philo->last_meal = *philo->start;
+	if (philo->id % 2 != 0)
+		usleep(1);
+	while (philo->state == ALIVE)
+	{
+		if (hour_glass(philo->last_meal, get_curr_time()) >= philo->hourglass)
+			philo->state = DEAD;
+		pthread_mutex_lock(philo->fork1);
+		printf("Philosopher %d piqued up a fork\n", philo->id);
+		pthread_mutex_lock(philo->fork2);
+		philo->last_meal = get_curr_time();
+		printf("Philosopher %d is eating\n", philo->id);
+		usleep(700);
+		pthread_mutex_unlock(philo->fork1);
+		pthread_mutex_unlock(philo->fork2);
+	}
+	printf("Philosopher %d DIED\n", philo->id);
+	return(NULL);
+}
+
+void	init_philos(t_reaper *reaper, int *args)
 {
 	int		re = -1;
 
@@ -31,58 +69,20 @@ void	init_philos(t_reaper *reaper, pthread_t *setup, int *args)
 			reaper->subject[re].fork2 = &reaper->fork[0];
 		else
 			reaper->subject[re].fork2 = &reaper->fork[re + 1];
-		reaper->subject[re].setup = setup;
 		reaper->subject[re].start = &reaper->start;
 		pthread_mutex_init(&reaper->subject[re].mutex, NULL);
 		pthread_mutex_init(&reaper->fork[re], NULL);
+		pthread_create(&reaper->subject[re].thread, NULL, limbo, &reaper->subject[re]);
 	}
-}
-
-long	get_curr_time(void)
-{
-	struct timeval	current;
-	gettimeofday(&current, NULL);
-	long curr = ((current.tv_sec * 1000) + current.tv_usec);
-
-	printf("Attained time:%ld\n", curr);
-	return (curr);
-}
-
-long	hour_glass(long start, long end)
-{
-	return( end - start);
-}
-
-void	*routine(void *args)
-{
-	t_philosopher	*philo = (t_philosopher *) args;
-	while(*philo->start == 0);
-	printf("setup finished! \n");
-	printf("start %d: %ld\n", philo->id, *philo->start);
-	usleep(200);
-	printf("end %d: %ld\n", philo->id, hour_glass(*philo->start, get_curr_time()));
-	return(NULL);
-}
-
-void	*underworld(void *args)
-{
-	t_reaper	*reaper = (t_reaper *)args;
-	int			i = -1;
-
-	while (++i < reaper->seats)
-		pthread_create(&reaper->subject[i].thread, NULL, routine, &reaper->subject[i]);
 	reaper->start = get_curr_time();
-	return(NULL);
 }
 
 int main(void)
 {
 	t_reaper	reaper;
-	pthread_t	setup;
 	int			argv[5] = {5, 600, 200, 700};
-	init_philos(&reaper, &setup, argv);
-	pthread_create(&setup, NULL, underworld, &reaper);
-	pthread_join(setup, NULL);
+	
+	init_philos(&reaper, argv);
 	// start_process(&reaper);
 	destr_philos(&reaper, argv);
 }
