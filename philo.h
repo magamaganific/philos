@@ -21,6 +21,7 @@ typedef struct s_reaper
 {
 	long			hourglass;
 	long			start;
-	s_philosopher	subject[250];
+	t_philosopher	subject[250];
+	int				seats;
 	pthread_mutex_t	fork[250];
 }	t_reaper;
