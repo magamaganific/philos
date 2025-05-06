@@ -31,6 +31,42 @@ void	init_philos(t_reaper *reaper, int *args)
 	}
 }
 
+unsigned long	get_curr_time(void)
+{
+	struct timeval	current;
+	gettimeofday(&current, NULL);
+
+	return (current.tv_sec * 1000 + current.tv_usec);
+}
+
+unsigned long	ft_countdown(unsigned long start, unsigned long curr)
+{
+	return (curr - start);
+}
+
+void	hour_glass(t_philosopher philo)
+{
+	printf("%ld\n", get_curr_time() - philo.last_meal);
+}
+
+void	ft_lunch(t_philosopher philo)
+{
+	hour_glass(philo);
+}
+
+void	*routine(void *args)
+{
+	t_philosopher philo = *(t_philosopher *)args;
+	if (!*philo.start)
+		while (!*philo.start);
+	if (!philo.last_meal)
+		philo.last_meal = *philo.start;
+	if (philo.state == ALIVE)
+	{
+		ft_lunch(philo);
+	}
+	return (NULL);
+}
 
 
 void	start_process(t_reaper *reaper)
