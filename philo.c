@@ -17,18 +17,20 @@ void	*routine(void *args)
 {
 	p_hilosopher	*philos = (p_hilosopher *)args;
 
+	printf("routine\n");
 	while (*philos->r_start == 0);
+	printf("routine start\n");
 	philos->last_meal = *philos->r_start;
 	while (philos->state == ALIVE)
 	{
 		philos->repeat++;
 		pthread_mutex_lock(philos->fork1);
 		printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
-		printf("Philo %d picked up a fork", philos->id);
+		printf("Philo %d picked up a fork\n", philos->id);
 		pthread_mutex_lock(philos->fork2);
 		philos->last_meal = get_curr_time();
 		printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
-		printf("Philo %d is eating", philos->id);
+		printf("Philo %d is eating\n", philos->id);
 		while (timestamp(philos->last_meal, get_curr_time()) <= philos->eat)
 			usleep(10);
 		while (timestamp(philos->last_meal, get_curr_time()) <= philos->eat + philos->sleep);
@@ -36,7 +38,7 @@ void	*routine(void *args)
 	if (philos->state == DEAD)
 	{
 		printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
-		printf("Philo %d DIED", philos->id);
+		printf("Philo %d DIED\n", philos->id);
 	}
 	return(NULL);
 }
@@ -50,7 +52,7 @@ void	ft_lock_all(p_urgatory *table)
 		if(table->subject[i].state != LOCKED)
 		{
 			pthread_mutex_lock(&table->subject[i].reap);
-			table->subject[i].state == LOCKED;
+			table->subject[i].state = LOCKED;
 		}
 	}
 }
@@ -61,7 +63,7 @@ void	*monitoring(void *args)
 	p_urgatory	*table = &reaper->table;
 	int		i = -1;
 
-	reaper->r_start = get_curr_time();
+	while (reaper->r_start == 0);
 	while (++i < table->subjects)
 	{
 		if (table->subject[i].last_meal >= reaper->hourglass)
@@ -94,6 +96,7 @@ void	preparations(grim_r *reaper, int *args)
 	reaper->hourglass = args[1];
 	reaper->end = &table->death;
 	reaper->rep = args[4];
+	pthread_create(&reaper->leash, NULL, monitoring, &reaper);
 	while (++i < table->subjects)
 	{
 		table->subject[i].id = i + 1;
@@ -109,8 +112,7 @@ void	preparations(grim_r *reaper, int *args)
 		table->subject[i].r_start = &reaper->r_start;
 		pthread_create(&table->subject[i].thread, NULL, routine, &table->subject[i]);
 	}
-	pthread_create(&reaper->leash, NULL, monitoring, &reaper);
-	
+	reaper->r_start = get_curr_time();
 }
 
 void	finish(grim_r *reaper)
@@ -128,10 +130,10 @@ void	finish(grim_r *reaper)
 
 int	main(void)
 {
-	int		args[5] = {4, 600, 200, 300, 10};
+	int		args[5] = {4, 600, 10, 10, 10};
 	grim_r	reaper;
 
 	preparations(&reaper, args);
 	finish(&reaper);
-	pthread_join(&reaper.leash, NULL);
+	pthread_join(reaper.leash, NULL);
 }
