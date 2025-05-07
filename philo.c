@@ -1,88 +1,118 @@
 #include "philo.h"
 
-void	destr_philos(t_reaper *reaper, int *args)
-{
-	int		re = -1;
-
-	while (++re < args[0])
-	{
-		pthread_mutex_destroy(&reaper->fork[re]);
-		pthread_join(reaper->subject[re].thread, NULL);
-		pthread_mutex_destroy(&reaper->subject[re].mutex);
-	}
-}
-
 long	get_curr_time(void)
 {
-	struct timeval	current;
-	gettimeofday(&current, NULL);
-	long curr = ((current.tv_sec * 1000) + current.tv_usec);
-	return (curr);
+	struct timeval	time;
+
+	gettimeofday(&time, NULL);
+	return(time.tv_sec * 1000 + time.tv_usec);
 }
 
-long	hour_glass(long start, long end)
+long	timestamp(long start, long end)
 {
-	return( end - start);
+	return(end - start);
 }
 
-void	*limbo(void	*args)
+void	*routine(void *args)
 {
-	t_philosopher *philo = (t_philosopher *) args;
+	p_hilosopher	*philos = (p_hilosopher *)args;
 
-	while (*philo->start == 0);
-	philo->last_meal = *philo->start;
-	if (philo->id % 2 != 0)
-		usleep(1);
-	while (philo->state == ALIVE)
+	while (*philos->r_start == 0);
+	philos->last_meal = *philos->r_start;
+	while (philos->state == ALIVE)
 	{
-		if (hour_glass(philo->last_meal, get_curr_time()) >= philo->hourglass)
-			philo->state = DEAD;
-		pthread_mutex_lock(philo->fork1);
-		printf("Philosopher %d piqued up a fork\n", philo->id);
-		pthread_mutex_lock(philo->fork2);
-		philo->last_meal = get_curr_time();
-		printf("Philosopher %d is eating\n", philo->id);
-		usleep(700);
-		pthread_mutex_unlock(philo->fork1);
-		pthread_mutex_unlock(philo->fork2);
+		philos->repeat++;
+		pthread_mutex_lock(philos->fork1);
+		printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
+		printf("Philo %d picked up a fork", philos->id);
+		pthread_mutex_lock(philos->fork2);
+		philos->last_meal = get_curr_time();
+		printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
+		printf("Philo %d is eating", philos->id);
+		while (timestamp(philos->last_meal, get_curr_time()) <= philos->eat)
+			usleep(10);
+		while (timestamp(philos->last_meal, get_curr_time()) <= philos->eat + philos->sleep);
 	}
-	printf("Philosopher %d DIED\n", philo->id);
+	printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
+	printf("Philo %d DIED", philos->id);
 	return(NULL);
 }
 
-void	init_philos(t_reaper *reaper, int *args)
+void	ft_lock_all(p_urgatory *table)
 {
-	int		re = -1;
+	int	i = -1;
 
-	reaper->seats = args[0];
-	reaper->start = 0;
-	while (++re < args[0])
-	{
-		reaper->subject[re].id = re + 1;
-		reaper->subject[re].state = ALIVE;
-		reaper->subject[re].hourglass = args[1];
-		reaper->subject[re].eat = args[2];
-		reaper->subject[re].rest = args[3];
-		reaper->subject[re].last_meal = 0;
-		reaper->subject[re].fork1 = &reaper->fork[re];
-		if (re == reaper->seats - 1)
-			reaper->subject[re].fork2 = &reaper->fork[0];
-		else
-			reaper->subject[re].fork2 = &reaper->fork[re + 1];
-		reaper->subject[re].start = &reaper->start;
-		pthread_mutex_init(&reaper->subject[re].mutex, NULL);
-		pthread_mutex_init(&reaper->fork[re], NULL);
-		pthread_create(&reaper->subject[re].thread, NULL, limbo, &reaper->subject[re]);
-	}
-	reaper->start = get_curr_time();
+	while(table->subject[++i].id)
+		pthread_mutex_lock(&table->subject[i].reap);
 }
 
-int main(void)
+void	*monitoring(void *args)
 {
-	t_reaper	reaper;
-	int			argv[5] = {5, 600, 200, 700};
+	grim_r		*reaper = (grim_r *)args;
+	p_urgatory	*table = &reaper->table;
+	int		i = -1;
+
+	reaper->r_start = get_curr_time();
+	while (table->subject[++i].id)
+	{
+		if (table->subject[i].last_meal >= reaper->hourglass)
+		{
+			table->subject[i].state = DEAD;
+			ft_lock_all(table);
+			break ;
+		}
+		else if (reaper->rep != -1 && table->subject[i].repeat == reaper->rep)
+			pthread_mutex_lock(&table->subject[i].reap);
+	}
+	return(NULL);
+}
+
+void	preparations(grim_r *reaper, int *args)
+{
+	int			i = -1;
+	p_urgatory *table = &reaper->table;
+
+	reaper->r_start = 0;
+	table->subjects = args[0];
+	reaper->hourglass = args[1];
+	reaper->end = &table->death;
+	reaper->rep = args[4];
+	while (++i < table->subjects)
+	{
+		table->subject[i].id = i + 1;
+		table->subject[i].eat = args[2];
+		table->subject[i].sleep = args[3];
+		table->subject[i].state = ALIVE;
+		pthread_mutex_init(&table->subject[i].reap, NULL);
+		pthread_mutex_init(&table->fork[i], NULL);
+		table->subject[i].fork1 = &table->fork[i];
+		if (i == table->subjects -1)
+			table->subject[i].fork2 = &table->fork[0];
+		table->subject[i].fork2 = &table->fork[i + 1];
+		table->subject[i].r_start = &reaper->r_start;
+		pthread_create(&table->subject[i].thread, NULL, routine, &table->subject[i]);
+	}
+	pthread_create(&reaper->leash, NULL, monitoring, &reaper);
 	
-	init_philos(&reaper, argv);
-	// start_process(&reaper);
-	destr_philos(&reaper, argv);
+}
+
+void	finish(grim_r *reaper)
+{
+	p_urgatory	*table = &reaper->table;
+	int	i = -1;
+	
+	while (table->subject[++i].id)
+	{
+		pthread_unlock
+		pthread_join(table->subject[i].thread, NULL);
+	}
+}
+
+int	main(void)
+{
+	int		args[5] = {4, 600, 200, 300, 10};
+	grim_r	reaper;
+
+	preparations(&reaper, args);
+	finish(&reaper);
 }

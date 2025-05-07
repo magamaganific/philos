@@ -1,38 +1,45 @@
-#include <pthread.h>
-#include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
-#include <unistd.h>	
+#include <stdio.h>
+#include <pthread.h>
 #include <sys/time.h>
 
 #ifndef ALIVE
-# define ALIVE 0
+# define ALIVE 1
 #endif
-#ifndef DEAD	
-# define DEAD 1
+#ifndef DEAD
+# define DEAD 0
 #endif
-
 
 typedef struct s_philosopher
 {
-	long			*start;
-	int				id;
-	int				state;
 	pthread_t		thread;
-	pthread_mutex_t	mutex;
-	long			hourglass;
-	long			rest;
-	long			eat;
-	long			last_meal;
+	pthread_mutex_t	reap;
+	int				id;
 	pthread_mutex_t	*fork1;
 	pthread_mutex_t	*fork2;
-}	t_philosopher;
+	long			*r_start;
+	long			last_meal;
+	long			eat;
+	long			sleep;
+	int				repeat;
+	int				state;
+}	p_hilosopher;
 
+typedef struct s_table
+{
+	p_hilosopher	subject[250];
+	pthread_mutex_t	fork[250];
+	pthread_mutex_t	death;
+	int				subjects;
+}	p_urgatory;
 
 typedef struct s_reaper
 {
-	pthread_t		thread;
-	long			start;
-	t_philosopher	subject[250];
-	int				seats;
-	pthread_mutex_t	fork[250];
-}	t_reaper;
+	p_urgatory		table;
+	int				rep;
+	pthread_t		leash;
+	pthread_mutex_t	*end;
+	long			r_start;
+	long			hourglass;
+}	grim_r;
