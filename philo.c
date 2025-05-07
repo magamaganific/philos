@@ -33,8 +33,11 @@ void	*routine(void *args)
 			usleep(10);
 		while (timestamp(philos->last_meal, get_curr_time()) <= philos->eat + philos->sleep);
 	}
-	printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
-	printf("Philo %d DIED", philos->id);
+	if (philos->state == DEAD)
+	{
+		printf("Time: %ld - ", timestamp(*philos->r_start, get_curr_time()));
+		printf("Philo %d DIED", philos->id);
+	}
 	return(NULL);
 }
 
@@ -43,7 +46,13 @@ void	ft_lock_all(p_urgatory *table)
 	int	i = -1;
 
 	while(table->subject[++i].id)
-		pthread_mutex_lock(&table->subject[i].reap);
+	{
+		if(table->subject[i].state != LOCKED)
+		{
+			pthread_mutex_lock(&table->subject[i].reap);
+			table->subject[i].state == LOCKED;
+		}
+	}
 }
 
 void	*monitoring(void *args)
@@ -53,16 +62,24 @@ void	*monitoring(void *args)
 	int		i = -1;
 
 	reaper->r_start = get_curr_time();
-	while (table->subject[++i].id)
+	while (++i < table->subjects)
 	{
 		if (table->subject[i].last_meal >= reaper->hourglass)
 		{
 			table->subject[i].state = DEAD;
+			pthread_mutex_lock(&table->death);
 			ft_lock_all(table);
+			pthread_mutex_unlock(&table->death);
 			break ;
 		}
 		else if (reaper->rep != -1 && table->subject[i].repeat == reaper->rep)
-			pthread_mutex_lock(&table->subject[i].reap);
+			if (table->subject[i].state != LOCKED)
+			{
+				pthread_mutex_lock(&table->subject[i].reap);
+				table->subject[i].state = LOCKED;
+			}
+		if (i == table->subjects - 1)
+			i = -1;
 	}
 	return(NULL);
 }
@@ -101,9 +118,10 @@ void	finish(grim_r *reaper)
 	p_urgatory	*table = &reaper->table;
 	int	i = -1;
 	
-	while (table->subject[++i].id)
+	while (++i < table->subjects)
 	{
-		pthread_unlock
+		if (table->subject[i].state == LOCKED)
+			pthread_mutex_unlock(&table->subject[i].reap);
 		pthread_join(table->subject[i].thread, NULL);
 	}
 }
@@ -115,4 +133,5 @@ int	main(void)
 
 	preparations(&reaper, args);
 	finish(&reaper);
+	pthread_join(&reaper.leash, NULL);
 }

@@ -4,6 +4,10 @@
 #include <pthread.h>
 #include <sys/time.h>
 
+
+#ifndef LOCKED
+# define LOCKED 2
+#endif
 #ifndef ALIVE
 # define ALIVE 1
 #endif
