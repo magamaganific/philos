@@ -12,6 +12,14 @@
 
 #include "philo.h"
 
+void	print_time(char *label, int id)
+{
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+	printf("ID: %d, ACTION: %s (%ld.%06ld)\n",  id, label, tv.tv_sec, tv.tv_usec);
+}
+
 void	pherror(void)
 {
 	printf("Invalid input\n");

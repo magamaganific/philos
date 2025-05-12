@@ -29,8 +29,17 @@ void	*limbo(void	*args)
 {
 	t_philosopher *philo = (t_philosopher *) args;
 
-	while (*philo->start == 0);
-	philo->last_meal = *philo->start;
+	while (*philo->start == 0)
+	{
+		pthread_mutex_lock(&philo->mutex);
+		philo->last_meal = *philo->start;
+		pthread_mutex_unlock(&philo->mutex);
+		if (philo->last_meal)
+			break ;
+		usleep(100);
+	}
+	printf("Time: %ld ", hour_glass(*philo->start, get_curr_time()));
+	printf("Philosopher %d starts\n", philo->id);
 	if (philo->id % 2 != 0)
 		usleep(1);
 	while (philo->state == ALIVE)
@@ -84,7 +93,7 @@ void	init_philos(t_reaper *reaper, int *args)
 int main(void)
 {
 	t_reaper	reaper;
-	int			argv[5] = {5, 600, 200, 700};
+	int			argv[5] = {5, 600, 200, 200};
 	
 	init_philos(&reaper, argv);
 	// start_process(&reaper);
