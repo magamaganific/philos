@@ -1,5 +1,14 @@
 #include "philo.h"
 
+
+void	print_time(char *label, int id)
+{
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+	printf("ID: %d %s (%ld.%06ld)\n",  id, label, tv.tv_sec, tv.tv_usec);
+}
+
 void	destr_philos(t_reaper *reaper, int *args)
 {
 	int		re = -1;
@@ -38,8 +47,7 @@ void	*limbo(void	*args)
 			break ;
 		usleep(100);
 	}
-	printf("Time: %ld ", hour_glass(*philo->start, get_curr_time()));
-	printf("Philosopher %d starts\n", philo->id);
+	print_time("START", philo->id);
 	if (philo->id % 2 != 0)
 		usleep(1);
 	while (philo->state == ALIVE)
@@ -47,19 +55,15 @@ void	*limbo(void	*args)
 		if (hour_glass(philo->last_meal, get_curr_time()) >= philo->hourglass)
 			philo->state = DEAD;
 		pthread_mutex_lock(philo->fork1);
-		printf("Time: %ld ", hour_glass(*philo->start, get_curr_time()));
-		printf("Philosopher %d piqued up a fork\n", philo->id);
+		print_time("picked up a fork", philo->id);
 		pthread_mutex_lock(philo->fork2);
-		philo->last_meal = get_curr_time();
-		printf("Time: %ld ", hour_glass(*philo->start, get_curr_time()));
-		printf("Philosopher %d is eating\n", philo->id);
+		print_time("is eating", philo->id);
 		usleep(100);
 		pthread_mutex_unlock(philo->fork1);
 		pthread_mutex_unlock(philo->fork2);
 		usleep(100);
 	}
-	printf("Time: %ld ", hour_glass(*philo->start, get_curr_time()));
-	printf("Philosopher %d DIED\n", philo->id);
+	print_time("DIED", philo->id);
 	return(NULL);
 }
 
