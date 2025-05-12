@@ -18,7 +18,7 @@ typedef struct s_philosopher
 	int				id;
 	int				state;
 	pthread_t		thread;
-	pthread_mutex_t	mutex;
+	pthread_mutex_t	*mutex;
 	long			hourglass;
 	long			rest;
 	long			eat;
@@ -35,4 +35,5 @@ typedef struct s_reaper
 	t_philosopher	subject[250];
 	int				seats;
 	pthread_mutex_t	fork[250];
+	pthread_mutex_t	mutex;
 }	t_reaper;

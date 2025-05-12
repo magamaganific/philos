@@ -6,7 +6,7 @@ void	print_time(char *label, int id)
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
-	printf("ID: %d %s (%ld.%06ld)\n",  id, label, tv.tv_sec, tv.tv_usec);
+	printf("(%ld.%06ld) ID: %d %s\n", tv.tv_sec, tv.tv_usec,  id, label);
 }
 
 void	destr_philos(t_reaper *reaper, int *args)
@@ -17,8 +17,8 @@ void	destr_philos(t_reaper *reaper, int *args)
 	{
 		pthread_mutex_destroy(&reaper->fork[re]);
 		pthread_join(reaper->subject[re].thread, NULL);
-		pthread_mutex_destroy(&reaper->subject[re].mutex);
 	}
+	pthread_mutex_destroy(&reaper->mutex);
 }
 
 long	get_curr_time(void)
@@ -40,16 +40,17 @@ void	*limbo(void	*args)
 
 	while (*philo->start == 0)
 	{
-		pthread_mutex_lock(&philo->mutex);
+		pthread_mutex_lock(philo->mutex);
 		philo->last_meal = *philo->start;
-		pthread_mutex_unlock(&philo->mutex);
+		pthread_mutex_unlock(philo->mutex);
+		if (philo->id % 2 == 0)
+			usleep(10);
 		if (philo->last_meal)
 			break ;
 		usleep(100);
 	}
 	print_time("START", philo->id);
-	if (philo->id % 2 != 0)
-		usleep(1);
+	usleep(10);
 	while (philo->state == ALIVE)
 	{
 		if (hour_glass(philo->last_meal, get_curr_time()) >= philo->hourglass)
@@ -57,13 +58,15 @@ void	*limbo(void	*args)
 		pthread_mutex_lock(philo->fork1);
 		print_time("picked up a fork", philo->id);
 		pthread_mutex_lock(philo->fork2);
+		philo->last_meal = get_curr_time();
 		print_time("is eating", philo->id);
-		usleep(100);
+		usleep(200);
 		pthread_mutex_unlock(philo->fork1);
 		pthread_mutex_unlock(philo->fork2);
-		usleep(100);
+		usleep(200);
 	}
-	print_time("DIED", philo->id);
+	if (philo->state == DEAD)
+		print_time("DIED", philo->id);
 	return(NULL);
 }
 
@@ -73,6 +76,7 @@ void	init_philos(t_reaper *reaper, int *args)
 
 	reaper->seats = args[0];
 	reaper->start = 0;
+	pthread_mutex_init(&reaper->mutex, NULL);
 	while (++re < args[0])
 	{
 		reaper->subject[re].id = re + 1;
@@ -87,7 +91,7 @@ void	init_philos(t_reaper *reaper, int *args)
 		else
 			reaper->subject[re].fork2 = &reaper->fork[re + 1];
 		reaper->subject[re].start = &reaper->start;
-		pthread_mutex_init(&reaper->subject[re].mutex, NULL);
+		reaper->subject[re].mutex = &reaper->mutex;
 		pthread_mutex_init(&reaper->fork[re], NULL);
 		pthread_create(&reaper->subject[re].thread, NULL, limbo, &reaper->subject[re]);
 	}
@@ -97,7 +101,7 @@ void	init_philos(t_reaper *reaper, int *args)
 int main(void)
 {
 	t_reaper	reaper;
-	int			argv[5] = {5, 600, 200, 200};
+	int			argv[5] = {5, 900, 200, 200};
 	
 	init_philos(&reaper, argv);
 	// start_process(&reaper);
