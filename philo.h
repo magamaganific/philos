@@ -1,49 +1,31 @@
 #include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
+#include <stdlib.h>
 #include <sys/time.h>
+#include <pthread.h>
 
-
-#ifndef LOCKED
-# define LOCKED 2
-#endif
-#ifndef ALIVE
-# define ALIVE 1
-#endif
-#ifndef DEAD
-# define DEAD 0
-#endif
-
-typedef struct s_philosopher
+typedef struct s_data
 {
-	pthread_t		thread;
-	pthread_mutex_t	reap;
-	int				id;
-	pthread_mutex_t	*fork1;
-	pthread_mutex_t	*fork2;
-	long			*r_start;
-	long			last_meal;
-	long			eat;
-	long			sleep;
-	int				repeat;
+	int				philo_count;
+	long			reps;
+	long long		obituary;
+	long long		ate_time;
+	long long		slept_time;
+	long long		eaten_time;
+	pthread_mutex_t	eaten_CÐ;
 	int				state;
-}	p_hilosopher;
+	pthread_mutex_t	died_CÐ;
+}	the_data;
 
-typedef struct s_table
+typedef struct s_philo
 {
-	p_hilosopher	subject[250];
-	pthread_mutex_t	fork[250];
-	pthread_mutex_t	death;
-	int				subjects;
-}	p_urgatory;
+	int				id;
+	pthread_t		thread_id;
+	pthread_mutex_t	fork_lock;
+	struct s_data	*data;
+}	t_philo;
 
-typedef struct s_reaper
-{
-	p_urgatory		table;
-	int				rep;
-	pthread_t		leash;
-	pthread_mutex_t	*end;
-	long			r_start;
-	long			hourglass;
-}	grim_r;
+
+void	pherror(void);
+int		ft_is_allnum(char *av);
+int		phatoi(char *av);
