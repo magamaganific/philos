@@ -4,25 +4,14 @@
 #include <sys/time.h>
 #include <pthread.h>
 
-typedef struct s_data
-{
-	int				philo_count;
-	long			reps;
-	long long		obituary;
-	long long		ate_time;
-	long long		slept_time;
-	long long		eaten_time;
-	pthread_mutex_t	eaten_CÐ;
-	int				state;
-	pthread_mutex_t	died_CÐ;
-}	the_data;
-
 typedef struct s_philo
 {
 	int				id;
-	pthread_t		thread_id;
-	pthread_mutex_t	fork_lock;
-	struct s_data	*data;
+	int				rep;
+	pthread_mutex_t	*mutex;
+	pthread_mutex_t	*fork1;
+	pthread_mutex_t	*fork2;
+	int				*start_flag;
 }	t_philo;
 
 
