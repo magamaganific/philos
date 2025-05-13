@@ -25,7 +25,7 @@ long	get_curr_time(void)
 {
 	struct timeval	current;
 	gettimeofday(&current, NULL);
-	long curr = ((current.tv_sec * 1000) + current.tv_usec);
+	long curr = ((current.tv_sec * 1000) + (current.tv_usec / 1000));
 	return (curr);
 }
 
@@ -43,8 +43,6 @@ void	*limbo(void	*args)
 		pthread_mutex_lock(philo->mutex);
 		philo->last_meal = *philo->start;
 		pthread_mutex_unlock(philo->mutex);
-		if (philo->id % 2 == 0)
-			usleep(10);
 		if (philo->last_meal)
 			break ;
 		usleep(100);
@@ -53,21 +51,58 @@ void	*limbo(void	*args)
 	usleep(10);
 	while (philo->state == ALIVE)
 	{
-		if (hour_glass(philo->last_meal, get_curr_time()) >= philo->hourglass)
+		if (philo->id % 2 == 0)
+		{
+			pthread_mutex_lock(philo->fork1);
+			print_time("picked up a fork", philo->id);
+			pthread_mutex_lock(philo->fork2);
+			philo->last_meal = get_curr_time();
+			print_time("is eating", philo->id);
+			while (hour_glass(philo->last_meal, get_curr_time()) <= philo->eat)
+				usleep(10);
+			pthread_mutex_unlock(philo->fork2);
+			pthread_mutex_unlock(philo->fork1);
+		}
+		else
+		{
+			pthread_mutex_lock(philo->fork2);
+			print_time("picked up a fork", philo->id);
+			pthread_mutex_lock(philo->fork1);
+			philo->last_meal = get_curr_time();
+			print_time("is eating", philo->id);
+			while (hour_glass(philo->last_meal, get_curr_time()) <= philo->eat)
+				usleep(10);
+			pthread_mutex_unlock(philo->fork1);
+			pthread_mutex_unlock(philo->fork2);
+		}
+		print_time("is sleeping", philo->id);
+		while (hour_glass(philo->last_meal, get_curr_time()) <= philo->eat + philo->rest)
+			usleep(10);
+		if (hour_glass(philo->last_meal, get_curr_time()) > philo->hourglass)
+		{
 			philo->state = DEAD;
-		pthread_mutex_lock(philo->fork1);
-		print_time("picked up a fork", philo->id);
-		pthread_mutex_lock(philo->fork2);
-		philo->last_meal = get_curr_time();
-		print_time("is eating", philo->id);
-		usleep(200);
-		pthread_mutex_unlock(philo->fork1);
-		pthread_mutex_unlock(philo->fork2);
-		usleep(200);
+			pthread_mutex_lock(philo->mutex);
+			print_time("DIED", philo->id);
+		}
 	}
-	if (philo->state == DEAD)
-		print_time("DIED", philo->id);
 	return(NULL);
+}
+
+void	setup_forks(t_reaper *reaper, int i)
+{
+	pthread_mutex_init(&reaper->fork[i], NULL);
+	reaper->subject[i].fork1 = &reaper->fork[i];
+	if (i == reaper->seats - 1)
+		reaper->subject[i].fork2 = &reaper->fork[0];
+	else
+		reaper->subject[i].fork2 = &reaper->fork[i + 1];
+}
+
+
+void	setup_timers(t_philosopher	*phil, int *args)
+{
+	phil->eat = args[2];
+	phil->rest = args[3];
 }
 
 void	init_philos(t_reaper *reaper, int *args)
@@ -82,14 +117,11 @@ void	init_philos(t_reaper *reaper, int *args)
 		reaper->subject[re].id = re + 1;
 		reaper->subject[re].state = ALIVE;
 		reaper->subject[re].hourglass = args[1];
-		reaper->subject[re].eat = args[2];
-		reaper->subject[re].rest = args[3];
+		setup_timers(&reaper->subject[re], args);
+		// printf("\neat = %ld\n\n", reaper->subject[re].eat);
 		reaper->subject[re].last_meal = 0;
 		reaper->subject[re].fork1 = &reaper->fork[re];
-		if (re == reaper->seats - 1)
-			reaper->subject[re].fork2 = &reaper->fork[0];
-		else
-			reaper->subject[re].fork2 = &reaper->fork[re + 1];
+		setup_forks(reaper, re);
 		reaper->subject[re].start = &reaper->start;
 		reaper->subject[re].mutex = &reaper->mutex;
 		pthread_mutex_init(&reaper->fork[re], NULL);
@@ -101,7 +133,7 @@ void	init_philos(t_reaper *reaper, int *args)
 int main(void)
 {
 	t_reaper	reaper;
-	int			argv[5] = {5, 900, 200, 200};
+	int			argv[5] = {6, 400, 200, 200};
 	
 	init_philos(&reaper, argv);
 	// start_process(&reaper);

@@ -1,0 +1,136 @@
+#include "philo.h"
+
+
+void	print_time(char *label, int id)
+{
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+	printf("(%ld.%06ld) ID: %d %s\n", tv.tv_sec, tv.tv_usec,  id, label);
+}
+
+void	destr_philos(t_reaper *reaper, int *args)
+{
+	int		re = -1;
+
+	while (++re < args[0])
+	{
+		pthread_mutex_destroy(&reaper->fork[re]);
+		pthread_join(reaper->subject[re].thread, NULL);
+	}
+	pthread_mutex_destroy(&reaper->mutex);
+}
+
+long	get_curr_time(void)
+{
+	struct timeval	current;
+	gettimeofday(&current, NULL);
+	long curr = ((current.tv_sec * 1000) + (current.tv_usec / 1000));
+	return (curr);
+}
+
+long	hour_glass(long start, long end)
+{
+	return( end - start);
+}
+
+void	*limbo(void	*args)
+{
+	t_philosopher *philo = (t_philosopher *) args;
+
+	while (*philo->start == 0)
+	{
+		pthread_mutex_lock(philo->mutex);
+		philo->last_meal = *philo->start;
+		pthread_mutex_unlock(philo->mutex);
+		if (philo->last_meal)
+			break ;
+		usleep(100);
+	}
+	print_time("START", philo->id);
+	usleep(10);
+	if (philo->state == DEAD)
+		prinf("I KILLED HIM!!!------------------------------\n");
+	while (philo->state == ALIVE)
+	{
+		if (philo->id % 2 == 0)
+		{
+			pthread_mutex_lock(philo->fork1);
+			print_time("picked up a fork", philo->id);
+			pthread_mutex_lock(philo->fork2);
+			philo->last_meal = get_curr_time();
+			print_time("is eating", philo->id);
+			while (hour_glass(philo->last_meal, get_curr_time()) <= philo->eat)
+				usleep(10);
+			pthread_mutex_unlock(philo->fork2);
+			pthread_mutex_unlock(philo->fork1);
+		}
+		else
+		{
+			pthread_mutex_lock(philo->fork2);
+			print_time("picked up a fork", philo->id);
+			pthread_mutex_lock(philo->fork1);
+			philo->last_meal = get_curr_time();
+			print_time("is eating", philo->id);
+			while (hour_glass(philo->last_meal, get_curr_time()) <= philo->eat)
+				usleep(10);
+			pthread_mutex_unlock(philo->fork1);
+			pthread_mutex_unlock(philo->fork2);
+		}
+		print_time("is sleeping", philo->id);
+		while (hour_glass(philo->last_meal, get_curr_time()) <= philo->eat + philo->rest)
+			usleep(10);
+		if (hour_glass(philo->last_meal, get_curr_time()) > philo->hourglass)
+		{
+			philo->state = DEAD;
+			pthread_mutex_lock(philo->mutex);
+			print_time("DIED", philo->id);
+			break ;
+		}
+	}
+	return(NULL);
+}
+
+void	init_philos(t_reaper *reaper, int *args)
+{
+	int		re = -1;
+
+	reaper->seats = args[0];
+	reaper->start = 0;
+	pthread_mutex_init(&reaper->mutex, NULL);
+	while (++re < args[0])
+	{
+		reaper->subject[re].id = re + 1;
+		reaper->subject[re].state = ALIVE;
+		reaper->subject[re].hourglass = args[1];
+		reaper->subject[re].eat = args[2];
+		reaper->subject[re].rest = args[3];
+		reaper->subject[re].last_meal = 0;
+		reaper->subject[re].fork1 = &reaper->fork[re];
+		if (re == args[0] - 1)
+			reaper->subject[re].fork2 = &reaper->fork[0];
+		else
+			reaper->subject[re].fork2 = &reaper->fork[re + 1];
+		reaper->subject[re].start = &reaper->start;
+		reaper->subject[re].mutex = &reaper->mutex;
+		reaper->state[re] = &reaper->subject[re].state;
+		pthread_mutex_init(&reaper->fork[re], NULL);
+		pthread_create(&reaper->subject[re].thread, NULL, limbo, &reaper->subject[re]);
+	}
+	reaper->start = get_curr_time();
+	reaper->state[0] = DEAD;
+}
+
+int main(void)
+{
+	t_reaper	reaper;
+	int			argv[5] = {6, 400, 200, 200};
+
+	reaper.philo = (t_philosopher *)malloc(sizeof(t_philosopher) * argv[0]);
+	reaper.fork = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * argv[0]);
+	reaper.state = (int *)malloc(sizeof(int) * argv[0]);
+	
+	init_philos(&reaper, argv);
+	// start_process(&reaper);
+	destr_philos(&reaper, argv);
+}
