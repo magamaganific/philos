@@ -87,12 +87,41 @@ long	get_curr_time(void)
 	return (curr);
 }
 
-void	lunchtable(t_phil *phil)
+void	left_lunch_way(t_phil *phil)
 {
-	if (phil->id % 2 == 0)
+	while (phil->state == ALIVE)
+	{
+		pthread_mutex_lock(phil->fork1);
+		phil->action = FORK;
+		pthread_mutex_lock(phil->fork2);
+		phil->action = EATING;
+		phil->last_meal = get_curr_time();
+		while (get_curr_time() - phil->last_meal <= phil->eat)
+			usleep(100);
+		pthread_mutex_unlock(phil->fork2);
+		pthread_mutex_unlock(phil->fork1);
+		phil->action = SLEEPING;
+		while (get_curr_time() - phil->last_meal <= phil->eat + phil->sleep)
+			usleep(100);
+	}
+}
+
+void	right_lunch_way(t_phil *phil)
+{
+	while (phil->state == ALIVE)
 	{
 		pthread_mutex_lock(phil->fork2);
-		phil->state = FORK;
+		phil->action = FORK;
+		pthread_mutex_lock(phil->fork1);
+		phil->action = EATING;
+		phil->last_meal = get_curr_time();
+		while (get_curr_time() - phil->last_meal <= phil->eat)
+			usleep(100);
+		pthread_mutex_unlock(phil->fork1);
+		pthread_mutex_unlock(phil->fork2);
+		phil->action = SLEEPING;
+		while (get_curr_time() - phil->last_meal <= phil->eat + phil->sleep)
+			usleep(100);
 	}
 }
 
@@ -109,11 +138,49 @@ void	*routine(void *args)
 			break ;
 		usleep(100);
 	}
-	while (phil->state == ALIVE)
-	{
-		lunch_table(phil);
-	}
+	if (phil->id % 2 == 0)
+		left_lunch_way(phil);
+	else
+		right_lunch_way(phil);
 	return (0);
+}
+
+void	print_time(int action, t_reaper *reaper, int id)
+{
+	if ()
+}
+
+void	kill_philo(int *state, int id, t_reaper *reaper)
+{
+	*state = DEAD;
+	print_time(DEAD, reaper, id);
+}
+
+void	stop_philo(t_reaper *reaper, int id)
+{
+	int	i;
+
+	i = -1;
+	while (++i <= reaper->attendance)
+	{
+		if (reaper->phil[i].id == id)
+			kill_philo(&reaper->phil[id].state, id, reaper);
+		else
+			phil_stop(&reaper->phil[id].state);
+	}
+}
+
+void	hades_office(t_reaper *reaper)
+{
+	int	i;
+
+	i = -1;
+	while (++i <= reaper->attendance)
+	{
+		if (get_curr_time() - reaper->phil[i].last_meal >= reaper->hourglass)
+			stop_philo(reaper, reaper->phil[i].id);
+		
+	}
 }
 
 int	til_death_phil(char **av)
@@ -140,9 +207,7 @@ int	til_death_phil(char **av)
 		pthread_create(&reaper.phil[i].thread, NULL, routine, &reaper.phil[i]);
 	}
 	reaper.start_time = get_curr_time();
-	printf("start time = %ld\n", reaper.start_time);
-	usleep(400000);
-	printf("end time = %ld\n", get_curr_time() - reaper.start_time);
+	hades_office(&reaper);
 	return (1);
 }
 
@@ -162,3 +227,8 @@ int	main(int ac, char **av)
 		printf("invalid, input\n");
 	return (0);
 }
+
+
+	// printf("start time = %ld\n", reaper.start_time);
+	// usleep(400000);
+	// printf("end time = %ld\n", get_curr_time() - reaper.start_time);

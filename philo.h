@@ -8,7 +8,7 @@
 # define ALIVE 0
 #endif
 #ifndef	DEAD
-# define DEAD 1
+# define DEAD -1
 #endif
 #ifndef	LOCKED
 # define LOCKED 0
@@ -16,14 +16,17 @@
 #ifndef	UNLOCKED
 # define UNLOCKED 1
 #endif
+#ifndef THINKING
+# define THINKING 0
+#endif
 #ifndef	FORK
 # define FORK 1
 #endif
-#ifndef	
-# define 
+#ifndef	EATING
+# define EATING 2
 #endif
-#ifndef	
-# define 
+#ifndef	SLEEPING
+# define SLEEPING 3
 #endif
 
 typedef struct s_phil
@@ -39,6 +42,7 @@ typedef struct s_phil
 	long			last_meal;
 	long			*start_time;
 	int				state;
+	int				action;
 }	t_phil;
 
 typedef struct s_reaper
