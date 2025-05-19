@@ -130,7 +130,6 @@ void	left_lunch_way(t_phil *phil)
 {
 	while (phil_is_alive(phil))
 	{
-		// printf("ID: %d state = %d\n", phil->id, phil->state);
 		pthread_mutex_lock(phil->fork1);
 		if (phil_is_alive(phil))
 			print_time(FORK, *phil->start_time, phil->id);
@@ -138,27 +137,25 @@ void	left_lunch_way(t_phil *phil)
 		phil->state.last_meal = get_curr_time();
 		if (phil_is_alive(phil))
 			print_time(EATING, *phil->start_time, phil->id);
-		while ((get_curr_time() - phil->state.last_meal) <= phil->eat
+		while ((get_curr_time() - phil->state.last_meal) < phil->eat
 			&& phil_is_alive(phil))
-			usleep(1);
+			usleep(5);
 		pthread_mutex_unlock(phil->fork2);
 		pthread_mutex_unlock(phil->fork1);
 		if (phil_is_alive(phil))
 			print_time(SLEEPING, *phil->start_time, phil->id);
 		while ((get_curr_time() - phil->state.last_meal)
-			<= (phil->eat + phil->sleep) && phil_is_alive(phil))
-			usleep(1);
+			< (phil->eat + phil->sleep) && phil_is_alive(phil))
+			usleep(5);
 		if (phil_is_alive(phil))
 			print_time(THINKING, *phil->start_time, phil->id);
 	}
-	// printf("ID: %d state = %d\n", phil->id, phil->state);
 }
 
 void	right_lunch_way(t_phil *phil)
 {
 	while (phil_is_alive(phil))
 	{
-		// printf("ID: %d state = %d\n", phil->id, phil->state);
 		pthread_mutex_lock(phil->fork2);
 		if (phil_is_alive(phil))
 			print_time(FORK, *phil->start_time, phil->id);
@@ -166,20 +163,19 @@ void	right_lunch_way(t_phil *phil)
 		phil->state.last_meal = get_curr_time();
 		if (phil_is_alive(phil))
 			print_time(EATING, *phil->start_time, phil->id);
-		while ((get_curr_time() - phil->state.last_meal) <= phil->eat
+		while ((get_curr_time() - phil->state.last_meal) < phil->eat
 			&& phil_is_alive(phil))
-			usleep(1);
+			usleep(5);
 		pthread_mutex_unlock(phil->fork1);
 		pthread_mutex_unlock(phil->fork2);
 		if (phil_is_alive(phil))
 			print_time(SLEEPING, *phil->start_time, phil->id);
 		while ((get_curr_time() - phil->state.last_meal)
-			<= (phil->eat + phil->sleep) && phil_is_alive(phil))
-			usleep(1);
+			< (phil->eat + phil->sleep) && phil_is_alive(phil))
+			usleep(5);
 		if (phil_is_alive(phil))
 			print_time(THINKING, *phil->start_time, phil->id);
 	}
-	// printf("ID: %d state = %d\n", phil->id, phil->state);
 }
 
 void	*routine(void *args)
@@ -212,11 +208,6 @@ void	kill_philo(int *state, int id, t_reaper *reaper)
 	*state = DEAD;
 	pthread_mutex_unlock(&reaper->phil[id - 1].state.mutex);
 	print_time(DEAD, reaper->start_time, id);
-}
-
-void	phil_stop(int *state)
-{
-	*state = DEAD;
 }
 
 void	stop_philo(t_reaper *reaper, int id)
