@@ -29,20 +29,34 @@
 # define SLEEPING 3
 #endif
 
-typedef struct s_testkill
+typedef struct s_hourglass
+{
+	pthread_mutex_t mutex;
+	long			last_meal;
+	int				state;
+}	t_hourglass;
+
+typedef struct s_phil
 {
 	pthread_t		thread;
-	pthread_mutex_t	kill;
-	pthread_mutex_t *start;
-	int				*flag;
-	int				*state;
-}	t_kill;
+	int				id;
+	pthread_mutex_t	*fork1;
+	pthread_mutex_t	*fork2;
+	pthread_mutex_t	*mutex;
+	long			eat;
+	long			sleep;
+	long			think;
+	t_hourglass		state;
+	long			*start_time;
+	int				action;
+}	t_phil;
 
-typedef struct s_scythe
+typedef struct s_reaper
 {
-	t_kill			test[10];
-	pthread_mutex_t kill[10];
-	pthread_mutex_t	start;
-	int				state;
-	int				flag;
-}	t_scythe;
+	struct s_phil	*phil;
+	pthread_mutex_t	*forks;
+	pthread_mutex_t mutex;
+	int				attendance;
+	long			start_time;
+	long			hourglass;
+}	t_reaper;

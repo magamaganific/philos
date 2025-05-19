@@ -69,11 +69,15 @@ int	init_reaper(t_reaper *reaper, int size)
 void	setup_forks(t_reaper *reaper, int i)
 {
 	pthread_mutex_init(&reaper->forks[i], NULL);
+	pthread_mutex_init(&reaper->phil[i].state.mutex, NULL);
 	reaper->phil[i].fork1 = &reaper->forks[i];
 	if (i == reaper->attendance - 1)
 		reaper->phil[i].fork2 = &reaper->forks[0];
 	else
 		reaper->phil[i].fork2 = &reaper->forks[i + 1];
+	reaper->phil[i].mutex = &reaper->mutex;
+	reaper->phil[i].start_time = &reaper->start_time;
+	reaper->phil[i].state.last_meal = 0;
 }
 
 void	setup_timers(t_phil	*phil, int *args)
@@ -98,61 +102,66 @@ void	print_time(int action, long start_time, int id)
 
 	curr_time = get_curr_time();
 	if (action == DEAD)
-		printf("%ld philo %d DIED\n", curr_time - start_time, id);
+		printf("%ld %d -------------------------DIED--------------------\n", curr_time - start_time, id);
 	else if (action == FORK)
-		printf("%ld philo %d picked up a fork\n", curr_time - start_time, id);
+		printf("%ld %d picked up a fork\n", curr_time - start_time, id);
 	else if (action == EATING)
-		printf("%ld philo %d is eating\n", curr_time - start_time, id);
+		printf("%ld %d is eating\n", curr_time - start_time, id);
 	else if (action == SLEEPING)
-		printf("%ld philo %d is sleeping\n", curr_time - start_time, id);
+		printf("%ld %d is sleeping\n", curr_time - start_time, id);
+}
+
+int		phil_is_alive(t_phil *phil)
+{
+	int	res;
+
+	res = 0;
+	usleep(10);
+	pthread_mutex_lock(&phil->state.mutex);
+	if (phil->state.state == ALIVE)
+		res = 1;
+	pthread_mutex_unlock(&phil->state.mutex);
+	return (res);
 }
 
 void	left_lunch_way(t_phil *phil)
 {
-	while (phil->state == ALIVE)
+	while (phil_is_alive(phil))
 	{
 		// printf("ID: %d state = %d\n", phil->id, phil->state);
 		pthread_mutex_lock(phil->fork1);
-		phil->action = FORK;
 		print_time(FORK, *phil->start_time, phil->id);
 		pthread_mutex_lock(phil->fork2);
-		phil->action = EATING;
-		phil->last_meal = get_curr_time();
+		phil->state.last_meal = get_curr_time();
 		print_time(EATING, *phil->start_time, phil->id);
-		while ((get_curr_time() - phil->last_meal) <= phil->eat)
-			usleep(10);
+		while ((get_curr_time() - phil->state.last_meal) <= phil->eat)
+			usleep(1);
 		pthread_mutex_unlock(phil->fork2);
 		pthread_mutex_unlock(phil->fork1);
-		phil->action = SLEEPING;
 		print_time(SLEEPING, *phil->start_time, phil->id);
-		while ((get_curr_time() - phil->last_meal) <= (phil->eat + phil->sleep))
-			usleep(10);
+		while ((get_curr_time() - phil->state.last_meal) <= (phil->eat + phil->sleep))
+			usleep(1);
 	}
 	// printf("ID: %d state = %d\n", phil->id, phil->state);
 }
 
 void	right_lunch_way(t_phil *phil)
 {
-	usleep(10);
-	while (phil->state == ALIVE)
+	while (phil_is_alive(phil))
 	{
 		// printf("ID: %d state = %d\n", phil->id, phil->state);
 		pthread_mutex_lock(phil->fork2);
-		phil->action = FORK;
 		print_time(FORK, *phil->start_time, phil->id);
 		pthread_mutex_lock(phil->fork1);
-		phil->action = EATING;
-		phil->last_meal = get_curr_time();
+		phil->state.last_meal = get_curr_time();
 		print_time(EATING, *phil->start_time, phil->id);
-		while ((get_curr_time() - phil->last_meal) < phil->eat)
-			usleep(10);
+		while ((get_curr_time() - phil->state.last_meal) < phil->eat)
+			usleep(1);
 		pthread_mutex_unlock(phil->fork1);
 		pthread_mutex_unlock(phil->fork2);
-		phil->action = SLEEPING;
 		print_time(SLEEPING, *phil->start_time, phil->id);
-		while ((get_curr_time() - phil->last_meal) < (phil->eat + phil->sleep))
-			usleep(10);
-		phil->action = THINKING;
+		while ((get_curr_time() - phil->state.last_meal) < (phil->eat + phil->sleep))
+			usleep(1);
 	}
 	// printf("ID: %d state = %d\n", phil->id, phil->state);
 }
@@ -164,14 +173,15 @@ void	*routine(void *args)
 	while(1)
 	{
 		pthread_mutex_lock(phil->mutex);
-		phil->last_meal = *phil->start_time;
+		phil->state.last_meal = *phil->start_time;
 		pthread_mutex_unlock(phil->mutex);
-		if (phil->last_meal)
+		if (phil->state.last_meal)
 			break ;
 		usleep(10);
 	}
-	phil->last_meal = get_curr_time();
-	usleep(10);
+	pthread_mutex_lock(&phil->state.mutex);
+	phil->state.last_meal = get_curr_time();
+	pthread_mutex_unlock(&phil->state.mutex);
 	if (phil->id % 2 == 0)
 		left_lunch_way(phil);
 	else
@@ -182,7 +192,9 @@ void	*routine(void *args)
 
 void	kill_philo(int *state, int id, t_reaper *reaper)
 {
+	pthread_mutex_lock(&reaper->phil[id - 1].state.mutex);
 	*state = DEAD;
+	pthread_mutex_unlock(&reaper->phil[id - 1].state.mutex);
 	print_time(DEAD, reaper->start_time, id);
 }
 
@@ -198,30 +210,35 @@ void	stop_philo(t_reaper *reaper, int id)
 	i = -1;
 	while (++i < reaper->attendance)
 	{
+		pthread_mutex_lock(&reaper->phil[i].state.mutex);
 		if (reaper->phil[i].id != id)
-			reaper->phil[i].state = DEAD;
-		printf("stopping: %d\n", reaper->phil[i].id);
+			reaper->phil[i].state.state = DEAD;
+		pthread_mutex_unlock(&reaper->phil[i].state.mutex);
 	}
 	i = -1;
 	while (++i < reaper->attendance)
 	{
-		printf("2nd stopping: %d\n", reaper->phil[i].id);
-		pthread_join(reaper->phil[i].thread, NULL);
 		pthread_mutex_destroy(&reaper->forks[i]);
+		pthread_join(reaper->phil[i].thread, NULL);
 	}
 }
 
 void	hades_office(t_reaper *reaper)
 {
-	int	i;
+	int		i;
+	long	time;
 
 	i = -1;
-	usleep(20);
+	time = 0;
+	usleep(1);
 	while (++i < reaper->attendance)
 	{
-		if ((get_curr_time() - reaper->phil[i].last_meal) >= reaper->hourglass)
+		pthread_mutex_lock(&reaper->phil[i].state.mutex);
+		time = get_curr_time() - reaper->phil[i].state.last_meal;
+		pthread_mutex_unlock(&reaper->phil[i].state.mutex);
+		if (time >= reaper->hourglass)
 		{
-			kill_philo(&reaper->phil[i].state, reaper->phil[i].id, reaper);
+			kill_philo(&reaper->phil[i].state.state, reaper->phil[i].id, reaper);
 			stop_philo(reaper, reaper->phil[i].id);
 			break ;
 		}
@@ -252,15 +269,15 @@ int	til_death_phil(char **av)
 	reaper.hourglass = args[1];
 	while (++i < reaper.attendance)
 	{
-		reaper.phil[i].state = ALIVE;
+		reaper.phil[i].state.state = ALIVE;
 		reaper.phil[i].id = i + 1;
 		setup_forks(&reaper, i);
 		setup_timers(&reaper.phil[i], args);
-		reaper.phil[i].mutex = &reaper.mutex;
-		reaper.phil[i].start_time = &reaper.start_time;
 		pthread_create(&reaper.phil[i].thread, NULL, routine, &reaper.phil[i]);
 	}
+	pthread_mutex_lock(&reaper.mutex);
 	reaper.start_time = get_curr_time();
+	pthread_mutex_unlock(&reaper.mutex);
 	hades_office(&reaper);
 	end_hades(&reaper, args);
 	return (1);

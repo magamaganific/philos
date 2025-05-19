@@ -29,6 +29,13 @@
 # define SLEEPING 3
 #endif
 
+typedef struct s_hourglass
+{
+	pthread_mutex_t mutex;
+	long			last_meal;
+	int				state;
+}	t_hourglass;
+
 typedef struct s_phil
 {
 	pthread_t		thread;
@@ -39,9 +46,8 @@ typedef struct s_phil
 	long			eat;
 	long			sleep;
 	long			think;
-	long			last_meal;
+	t_hourglass		state;
 	long			*start_time;
-	int				state;
 	int				action;
 }	t_phil;
 
