@@ -78,6 +78,9 @@ void	setup_forks(t_reaper *reaper, int i)
 	reaper->phil[i].mutex = &reaper->mutex;
 	reaper->phil[i].start_time = &reaper->start_time;
 	reaper->phil[i].state.last_meal = 0;
+	if (reaper->phil[i].reps != -1)
+		reaper->rep_check = reaper->attendance;
+	reaper->phil[i].state.rep_check = &reaper->rep_check;
 }
 
 void	setup_timers(t_phil	*phil, int *args)
@@ -85,6 +88,9 @@ void	setup_timers(t_phil	*phil, int *args)
 	phil->eat = args[2];
 	phil->sleep = args[3];
 	phil->think = args[1] - (args[2] - args[3]);
+	phil->reps = -1;
+	if (args[4])
+		phil->reps = args[4];
 }
 
 
@@ -128,7 +134,7 @@ int		phil_is_alive(t_phil *phil)
 
 void	left_lunch_way(t_phil *phil)
 {
-	while (phil_is_alive(phil))
+	while (phil_is_alive(phil) && phil->reps != 0)
 	{
 		pthread_mutex_lock(phil->fork1);
 		if (phil_is_alive(phil))
@@ -149,12 +155,13 @@ void	left_lunch_way(t_phil *phil)
 			usleep(5);
 		if (phil_is_alive(phil))
 			print_time(THINKING, *phil->start_time, phil->id);
+		phil->reps--;
 	}
 }
 
 void	right_lunch_way(t_phil *phil)
 {
-	while (phil_is_alive(phil))
+	while (phil_is_alive(phil) && phil->reps != 0)
 	{
 		pthread_mutex_lock(phil->fork2);
 		if (phil_is_alive(phil))
@@ -175,6 +182,7 @@ void	right_lunch_way(t_phil *phil)
 			usleep(5);
 		if (phil_is_alive(phil))
 			print_time(THINKING, *phil->start_time, phil->id);
+		phil->reps--;
 	}
 }
 
@@ -198,6 +206,9 @@ void	*routine(void *args)
 		left_lunch_way(phil);
 	else
 		right_lunch_way(phil);
+	pthread_mutex_lock(phil->mutex);
+	*phil->state.rep_check = *phil->state.rep_check - 1;
+	pthread_mutex_unlock(phil->mutex);
 	return (0);
 }
 
@@ -206,8 +217,9 @@ void	kill_philo(int *state, int id, t_reaper *reaper)
 {
 	pthread_mutex_lock(&reaper->phil[id - 1].state.mutex);
 	*state = DEAD;
+	if(reaper->phil[id - 1].reps != 0)
+		print_time(DEAD, reaper->start_time, id);
 	pthread_mutex_unlock(&reaper->phil[id - 1].state.mutex);
-	print_time(DEAD, reaper->start_time, id);
 }
 
 void	stop_philo(t_reaper *reaper, int id)
@@ -233,16 +245,22 @@ void	stop_philo(t_reaper *reaper, int id)
 void	hades_office(t_reaper *reaper)
 {
 	int		i;
+	int		reps;
 	long	time;
 
 	i = -1;
+	reps = 0;
 	usleep(1);
 	while (++i < reaper->attendance)
 	{
+		pthread_mutex_lock(&reaper->mutex);
+		reps = reaper->rep_check;
+		pthread_mutex_unlock(&reaper->mutex);
 		pthread_mutex_lock(&reaper->phil[i].state.mutex);
 		time = reaper->phil[i].state.last_meal;
 		pthread_mutex_unlock(&reaper->phil[i].state.mutex);
-		if (time && get_curr_time() - time >= reaper->hourglass)
+		if (time && get_curr_time() - time >= reaper->hourglass
+			|| reps == 0)
 		{
 			kill_philo(&reaper->phil[i].state.state, reaper->phil[i].id, reaper);
 			stop_philo(reaper, reaper->phil[i].id);
@@ -289,6 +307,35 @@ int	til_death_phil(char **av)
 	return (1);
 }
 
+int	repeat_phil(char **av)
+{
+	t_reaper reaper;
+	int		*args;
+	int		i;
+
+	i = -1;
+	args = get_args(av, 5);
+	if (!args)
+		return(0);
+	if (!init_reaper(&reaper, args[0]))
+		return(0);
+	reaper.hourglass = args[1];
+	while (++i < reaper.attendance)
+	{
+		reaper.phil[i].state.state = ALIVE;
+		reaper.phil[i].id = i + 1;
+		setup_timers(&reaper.phil[i], args);
+		setup_forks(&reaper, i);
+		pthread_create(&reaper.phil[i].thread, NULL, routine, &reaper.phil[i]);
+	}
+	pthread_mutex_lock(&reaper.mutex);
+	reaper.start_time = get_curr_time();
+	pthread_mutex_unlock(&reaper.mutex);
+	hades_office(&reaper);
+	end_hades(&reaper, args);
+	return (1);
+}
+
 int	main(int ac, char **av)
 {
 	if (ac == 5)
@@ -298,7 +345,7 @@ int	main(int ac, char **av)
 	}
 	else if (ac == 6)
 	{
-		// if (!repeat_phil(av))
+		if (!repeat_phil(av))
 			printf("invalid, input\n");
 	}
 	else

@@ -34,6 +34,7 @@ typedef struct s_hourglass
 	pthread_mutex_t mutex;
 	long			last_meal;
 	int				state;
+	int				*rep_check;
 }	t_hourglass;
 
 typedef struct s_phil
@@ -48,6 +49,7 @@ typedef struct s_phil
 	long			think;
 	t_hourglass		state;
 	long			*start_time;
+	int				reps;
 	int				action;
 }	t_phil;
 
@@ -59,4 +61,5 @@ typedef struct s_reaper
 	int				attendance;
 	long			start_time;
 	long			hourglass;
+	int				rep_check;
 }	t_reaper;
